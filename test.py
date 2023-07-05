@@ -1,16 +1,37 @@
 import torch
+from model import GPT
 
-class LinearLayer(torch.nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super().__init__()
+num_layers = 12
+embedding_dim = 768
+hidden_dim = 768
+num_heads = 12
+d_head = 64
+ff_dim = 768 * 4
+dropout = 0.1
 
-        self.W = torch.nn.Parameter(torch.randn(input_dim, output_dim))
-        self.b = torch.nn.Parameter(torch.zeros(output_dim))
-    
-    def forward(self, x):
-        # x: (...input_dim)
-        return torch.einsum('...i,io,o->...o', x, self.W, self.b)
-    
-model = LinearLayer(3, 4)
-x = torch.randn(2, 3)
-print(model(x).shape) # (2, 4)
+model1 = GPT(vocab_size=50257, num_layers=num_layers, embedding_dim=embedding_dim, hidden_dim=hidden_dim, num_heads=num_heads, ff_dim=ff_dim, dropout=dropout).decoder_block
+model2 = torch.nn.TransformerDecoder(
+    decoder_layer=torch.nn.TransformerDecoderLayer(
+        d_model=embedding_dim,
+        nhead=num_heads,
+        dim_feedforward=ff_dim,
+        dropout=dropout,
+        activation='relu'
+    ),
+    num_layers=num_layers
+)
+
+print("{:_}".format(sum(p.numel() for p in model1.parameters() if p.requires_grad)))
+print("{:_}".format(sum(p.numel() for p in model2.parameters() if p.requires_grad)))
+
+model1.cuda()
+model2.cuda()
+
+x1 = torch.randn(1, 1024, 768).cuda()
+x2 = torch.randn(1024, 1, 768).cuda()
+
+y1 = model1(x1)
+y2 = model2(x2, x1)
+
+print(y1.shape)
+print(y2.shape)

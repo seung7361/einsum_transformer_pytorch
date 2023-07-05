@@ -9,7 +9,7 @@ class Dropout(torch.nn.Module):
     
     def forward(self, x):
         if self.training:
-            mask = torch.rand(x.shape) > self.p
+            mask = (torch.rand(x.shape) > self.p).cuda()
             mask = mask.float()
             return x * mask
         else:
@@ -117,7 +117,7 @@ class PositionwiseFeedForwardLayer(torch.nn.Module):
         return x
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, vocab_size, embedding_dim, max_length=512):
+    def __init__(self, vocab_size, embedding_dim, max_length=128):
         super().__init__()
 
         self.vocab_size = vocab_size
@@ -160,6 +160,7 @@ class DecoderLayer(torch.nn.Module):
     
     def forward(self, x):
         # x, out: (batch_size, seq_len, hidden_dim)
+        x = x.cuda()
         out = self.layer_norm1(x + self.dropout(self.multi_head_attention(x))) # MBA, Add & Norm
         out = self.layer_norm2(out + self.dropout(self.positionwise_feed_forward(out))) # FFN, Add & Norm
 
@@ -199,6 +200,9 @@ class GPT(torch.nn.Module):
 
         self.positional_encoding = PositionalEncoding(vocab_size, embedding_dim)
         self.decoder_block = DecoderBlock(vocab_size, num_layers, embedding_dim, hidden_dim, num_heads, ff_dim, dropout)
+
+        self.out1 = torch.nn.Parameter(torch.randn(hidden_dim, vocab_size))
+        self.out2 = torch.nn.Parameter(torch.randn(vocab_size))
     
     def forward(self, x):
         # x: (batch_size, seq_len)
@@ -207,6 +211,8 @@ class GPT(torch.nn.Module):
 
         x = self.decoder_block(x)
         # x: (batch_size, seq_len, hidden_dim)
+
+        x = torch.einsum('...i, i j, j -> ...j', x, self.out1, self.out2)
 
         return x
 
