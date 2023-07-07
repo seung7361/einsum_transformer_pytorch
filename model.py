@@ -117,7 +117,7 @@ class PositionwiseFeedForwardLayer(torch.nn.Module):
         return x
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, vocab_size, embedding_dim, max_length=128):
+    def __init__(self, vocab_size, embedding_dim, max_length=512):
         super().__init__()
 
         self.vocab_size = vocab_size
@@ -217,7 +217,7 @@ class GPT(torch.nn.Module):
         return x
 
     def generate(self, text, tokenizer, max_length=64, top_p=0.9):
-        input_ids = tokenizer(text, return_tensors='pt')['input_ids']
+        input_ids = tokenizer(text, return_tensors='pt')['input_ids'].cuda()
 
         for i in range(max_length):
             outputs = self(input_ids)
